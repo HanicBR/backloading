@@ -26,8 +26,6 @@
             --border-color: rgba(248, 250, 252, 0.06);
 
             --progress-bg: rgba(15, 23, 42, 0.85);
-            --progress-fill: linear-gradient(90deg, #BE1B3C, #f97373);
-
             --blur-amount: 18px;
         }
 
@@ -299,6 +297,104 @@
             margin-bottom: 2px;
         }
 
+        /* === VIP BOX === */
+        .vip-box {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(248,250,252,0.22);
+            background:
+                radial-gradient(circle at top right, rgba(190,27,60,0.32), transparent 70%),
+                rgba(15,23,42,0.96);
+            box-shadow: 0 12px 26px rgba(15,23,42,0.9);
+        }
+
+        .vip-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--accent-soft);
+        }
+
+        .vip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .vip-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+            border: 1px solid rgba(248,250,252,0.22);
+            box-shadow: 0 8px 18px rgba(15,23,42,0.9);
+            min-width: 0;
+        }
+
+        .vip-avatar,
+        .vip-avatar-placeholder {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: radial-gradient(circle at top, #f9fafb, #9ca3af);
+        }
+
+        .vip-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .vip-avatar-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .vip-name {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            max-width: 170px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Rainbow effect no nome do VIP */
+        .rainbow-text {
+            background: linear-gradient(
+                90deg,
+                #ff0000,
+                #ff7f00,
+                #ffff00,
+                #00ff00,
+                #00ffff,
+                #0000ff,
+                #8b00ff,
+                #ff0000
+            );
+            background-size: 400%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: rainbowMove 4s linear infinite;
+        }
+
+        @keyframes rainbowMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 400% 50%; }
+        }
+
         /* COLUNA DIREITA */
         .status-header {
             display: flex;
@@ -341,7 +437,7 @@
             height: 100%;
             width: 0%;
             border-radius: 999px;
-            background: var(--progress-fill);
+            background: linear-gradient(90deg, #BE1B3C, #f97373);
             box-shadow:
                 0 0 16px rgba(190,27,60,0.75),
                 0 0 42px rgba(248,250,252,0.6);
@@ -518,6 +614,14 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- === VIPS === -->
+                <div class="vip-box">
+                    <div class="vip-title">Jogadores VIP</div>
+                    <div class="vip-list" id="vip-list">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- COLUNA DIREITA -->
@@ -593,6 +697,12 @@
             musicVolume: 0.35
         };
 
+        // IDs dos VIPs (SteamID64)
+        const VIPS = [
+            { id: "76561198112381395" },
+            { id: "76561198120269778" }
+        ];
+
         // ==========================
         // FUNDO (slideshow)
         // ==========================
@@ -640,6 +750,77 @@
                 tipEl.textContent = tips[index];
             }, LOADING_CONFIG.tipRotationSeconds * 1000);
         })();
+
+        // ==========================
+        // VIPs - busca na Steam
+        // ==========================
+        function loadVipProfiles() {
+            const container = document.getElementById("vip-list");
+            if (!container || !VIPS || VIPS.length === 0) return;
+
+            VIPS.forEach(vip => {
+                // Card base com placeholder
+                const card = document.createElement("div");
+                card.className = "vip-card";
+
+                const avatarPlaceholder = document.createElement("div");
+                avatarPlaceholder.className = "vip-avatar-placeholder";
+                avatarPlaceholder.textContent = "?";
+
+                const nameSpan = document.createElement("span");
+                nameSpan.className = "vip-name rainbow-text";
+                nameSpan.textContent = "Carregando VIP...";
+
+                card.appendChild(avatarPlaceholder);
+                card.appendChild(nameSpan);
+                container.appendChild(card);
+
+                // Busca dados na Steam (XML público)
+                const url = "https://steamcommunity.com/profiles/" + vip.id + "/?xml=1";
+
+                fetch(url)
+                    .then(resp => resp.text())
+                    .then(str => {
+                        const parser = new DOMParser();
+                        const xml = parser.parseFromString(str, "text/xml");
+
+                        const nameNode = xml.getElementsByTagName("steamID")[0];
+                        const avatarFull = xml.getElementsByTagName("avatarFull")[0];
+                        const avatarMedium = xml.getElementsByTagName("avatarMedium")[0];
+
+                        const displayName = (nameNode && nameNode.textContent) ? nameNode.textContent : vip.id;
+                        const avatarUrl = (avatarFull && avatarFull.textContent) ?
+                            avatarFull.textContent :
+                            (avatarMedium && avatarMedium.textContent ? avatarMedium.textContent : null);
+
+                        // Substitui placeholder por avatar real, se existir
+                        if (avatarUrl) {
+                            const avatarWrapper = document.createElement("div");
+                            avatarWrapper.className = "vip-avatar";
+
+                            const img = document.createElement("img");
+                            img.src = avatarUrl;
+                            img.alt = displayName;
+
+                            avatarWrapper.appendChild(img);
+                            card.replaceChild(avatarWrapper, avatarPlaceholder);
+                        } else {
+                            // Pelo menos coloca uma inicial no placeholder
+                            avatarPlaceholder.textContent = (displayName[0] || "?").toUpperCase();
+                        }
+
+                        nameSpan.textContent = displayName;
+                    })
+                    .catch(() => {
+                        // Falhou (CORS ou outro erro) -> fallback
+                        avatarPlaceholder.textContent = (vip.id[vip.id.length - 1] || "?");
+                        nameSpan.textContent = "VIP " + vip.id;
+                    });
+            });
+        }
+
+        // Chama assim que possível
+        loadVipProfiles();
 
         // ==========================
         // MÚSICA
