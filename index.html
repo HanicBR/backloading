@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <title>Conectando ao servidor...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Fonte opcional (pode remover se quiser tudo local) -->
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #05070b;
+            --accent: #ffffff;
+            --accent-soft: #c5c5c5;
+            --primary: #ff3b3b;
+            --primary-soft: rgba(255, 59, 59, 0.25);
+            --card-bg: rgba(10, 12, 20, 0.92);
+            --border-color: rgba(255, 255, 255, 0.05);
+            --progress-bg: rgba(255, 255, 255, 0.08);
+            --progress-fill: #ff3b3b;
+            --blur-amount: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg-color);
+            color: var(--accent);
+        }
+
+        /* Fundo com duas imagens para crossfade */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: -2;
+        }
+
+        .bg-layer img {
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            min-width: 100%;
+            min-height: 100%;
+            object-fit: cover;
+            filter: blur(var(--blur-amount)) brightness(0.4);
+            transform: scale(1.06);
+            transition: opacity 1.2s ease;
+            opacity: 0;
+        }
+
+        .bg-layer img.active {
+            opacity: 1;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at top, rgba(255,255,255,0.04) 0, transparent 45%),
+                radial-gradient(circle at bottom, rgba(255,59,59,0.22) 0, transparent 55%),
+                linear-gradient(135deg, rgba(0,0,0,0.85), rgba(2,6,23,0.95));
+            z-index: -1;
+        }
+
+        .noise {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.12;
+            mix-blend-mode: soft-light;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1200 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='noStitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
+        }
+
+        .wrapper {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            padding: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .content {
+            width: min(1080px, 100%);
+            height: min(620px, 100%);
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+            gap: 20px;
+            border-radius: 24px;
+            background: radial-gradient(circle at top left, rgba(255,255,255,0.08), transparent 55%),
+                        radial-gradient(circle at bottom, rgba(255,59,59,0.2), transparent 60%),
+                        var(--card-bg);
+            border: 1px solid var(--border-color);
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.03),
+                0 28px 60px rgba(0,0,0,0.85);
+            padding: 24px 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content::before {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.04), transparent 55%);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .col {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Coluna esquerda: info servidor */
+        .server-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .server-logo {
+            width: 70px;
+            height: 70px;
+            border-radius: 20px;
+            background: radial-gradient(circle at top, #ffffff, #cccccc);
+            border: 2px solid rgba(255,255,255,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Teko", system-ui, sans-serif;
+            font-weight: 600;
+            font-size: 26px;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            overflow: hidden;
+        }
+
+        .server-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .server-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .server-name {
+            font-family: "Teko", system-ui, sans-serif;
+            font-size: 30px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .server-subtitle {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--accent-soft);
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .pill {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            padding: 5px 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: linear-gradient(135deg, rgba(8,8,16,0.9), rgba(15,23,42,0.9));
+            color: var(--accent-soft);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: radial-gradient(circle at center, var(--primary), transparent);
+        }
+
+        .server-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .info-card {
+            padding: 10px 11px;
+            border-radius: 14px;
+            background: radial-gradient(circle at top left, rgba(255,255,255,0.06), transparent 55%),
+                        rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148,163,184,0.25);
+        }
+
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--accent-soft);
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .tip-box {
+            margin-top: 12px;
+            padding: 9px 11px;
+            border-radius: 14px;
+            border: 1px dashed rgba(148,163,184,0.8);
+            background: radial-gradient(circle at left, rgba(255, 59, 59, 0.14), transparent 55%),
+                        rgba(15,23,42,0.9);
+            font-size: 13px;
+            color: #e5e7eb;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .tip-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            opacity: 0.8;
+        }
+
+        /* Coluna direita: progresso */
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+
+        .status-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--accent-soft);
+        }
+
+        .status-small {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: rgba(148,163,184,0.95);
+        }
+
+        .progress-wrapper {
+            margin-bottom: 14px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--progress-bg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--progress-fill), #ff8f3b);
+            box-shadow:
+                0 0 18px rgba(255,59,59,0.6),
+                0 0 40px rgba(248,250,252,0.55);
+            position: relative;
+        }
+
+        .progress-bar-fill::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg,
+                rgba(255,255,255,0.4),
+                transparent 55%,
+                rgba(255,255,255,0.2)
+            );
+            mix-blend-mode: screen;
+            opacity: 0.7;
+        }
+
+        .progress-label-row {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--accent-soft);
+        }
+
+        .progress-percent {
+            font-family: "Teko", system-ui, sans-serif;
+            font-size: 20px;
+            letter-spacing: 0.18em;
+        }
+
+        .status-text {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--accent-soft);
+            min-height: 18px;
+        }
+
+        .file-text {
+            margin-top: 4px;
+            font-size: 11px;
+            color: rgba(148,163,184,0.9);
+        }
+
+        .rules-box {
+            margin-top: 18px;
+            padding: 12px 12px;
+            border-radius: 16px;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 55%),
+                        rgba(15,23,42,0.92);
+            border: 1px solid rgba(148,163,184,0.22);
+            font-size: 12px;
+            color: #e5e7eb;
+            max-height: 210px;
+            overflow: hidden;
+        }
+
+        .rules-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--accent-soft);
+            margin-bottom: 4px;
+        }
+
+        .rules-list {
+            margin-left: 16px;
+            margin-top: 4px;
+        }
+
+        .rules-list li {
+            margin-bottom: 2px;
+        }
+
+        /* Rodapé pequeno */
+        .footer {
+            position: absolute;
+            left: 24px;
+            right: 24px;
+            bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: rgba(148,163,184,0.85);
+        }
+
+        @media (max-width: 900px) {
+            .wrapper {
+                padding: 12px;
+            }
+            .content {
+                height: auto;
+                min-height: 520px;
+                grid-template-columns: minmax(0,1fr);
+            }
+            .footer {
+                position: static;
+                margin-top: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Fundo -->
+    <div class="bg-layer" id="bg-layer">
+        <!-- As imagens são trocadas via JS -->
+    </div>
+    <div class="bg-overlay"></div>
+    <div class="noise"></div>
+
+    <div class="wrapper">
+        <div class="content">
+            <!-- COLUNA ESQUERDA -->
+            <div class="col">
+                <div class="server-header">
+                    <div class="server-logo" id="server-logo">
+                        <!-- Se quiser imagem, coloque <img src="logo.png"> -->
+                        BSB
+                    </div>
+                    <div class="server-title-group">
+                        <div class="server-name" id="server-name">Seu Servidor de GMod</div>
+                        <div class="server-subtitle" id="server-subtitle">
+                            Conectando ao servidor...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pill-row">
+                    <div class="pill">
+                        <span class="pill-dot"></span>
+                        <span id="pill-gamemode">Gamemode desconhecido</span>
+                    </div>
+                    <div class="pill">
+                        <span class="pill-dot"></span>
+                        <span id="pill-map">mapa_desconhecido</span>
+                    </div>
+                    <div class="pill">
+                        <span class="pill-dot"></span>
+                        <span id="pill-players">0/0 Jogadores</span>
+                    </div>
+                </div>
+
+                <div class="server-info-grid">
+                    <div class="info-card">
+                        <div class="info-label">Mapa</div>
+                        <div class="info-value" id="info-map">–</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Modo de jogo</div>
+                        <div class="info-value" id="info-gamemode">–</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Seu SteamID</div>
+                        <div class="info-value" id="info-steamid">–</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Slots</div>
+                        <div class="info-value" id="info-slots">–</div>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <div>
+                        <div class="tip-label">Dica</div>
+                        <div id="tip-text">
+                            Respeite as regras do servidor e divirta-se.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUNA DIREITA -->
+            <div class="col">
+                <div class="status-header">
+                    <div class="status-title">Status de conexão</div>
+                    <div class="status-small" id="lang-indicator">Carregando recursos...</div>
+                </div>
+
+                <div class="progress-wrapper">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-label-row">
+                        <span id="progress-label">Inicializando...</span>
+                        <span class="progress-percent" id="progress-percent">0%</span>
+                    </div>
+                </div>
+
+                <div class="status-text" id="status-text">
+                    Aguardando resposta do jogo...
+                </div>
+                <div class="file-text" id="file-text"></div>
+
+                <div class="rules-box">
+                    <div class="rules-title">Regras principais</div>
+                    <ul class="rules-list" id="rules-list">
+                        <li>1. Respeite todos os jogadores e staff.</li>
+                        <li>2. Proibido qualquer tipo de trapaça ou script ilegal.</li>
+                        <li>3. Sem anúncios ou spam de outros servidores.</li>
+                        <li>4. Siga as regras específicas do modo de jogo.</li>
+                        <li>5. A staff sempre terá a palavra final.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer">
+                <span id="footer-left">Carregando conteúdo do servidor...</span>
+                <span id="footer-right">Obrigado por jogar com a gente ♥</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Música opcional -->
+    <audio id="bg-music" preload="auto" loop style="display:none"></audio>
+
+    <script>
+        // ==========================
+        // CONFIGURAÇÃO PERSONALIZÁVEL
+        // ==========================
+        const LOADING_CONFIG = {
+            fallbackServerName: "Backstabber Sandbox",
+            subtitleWhenIdle: "Conectando ao servidor...",
+            tipRotationSeconds: 10,
+            tips: [
+                "Pressione F1/F2 (ou a tecla configurada) para ver as regras do servidor.",
+                "Respeite os outros jogadores. Toxicidade pode resultar em ban.",
+                "Use o chat de voz com bom senso – sem gritos constantes.",
+                "Problemas ou bugs? Avise a staff para podermos corrigir.",
+                "Suas sugestões são bem-vindas. Ajude o servidor a crescer!"
+            ],
+            backgroundImages: [
+                "backgrounds/bg1.jpg",
+                "backgrounds/bg2.jpg",
+                "backgrounds/bg3.jpg"
+            ],
+            backgroundChangeSeconds: 12,
+            enableMusic: false,            // coloque true se quiser música
+            musicFiles: [
+                // "music/track1.ogg",
+                // "music/track2.ogg"
+            ],
+            musicVolume: 0.35
+        };
+
+        // ==========================
+        // LÓGICA DE FUNDO (SLIDESHOW)
+        // ==========================
+        (function initBackground() {
+            const layer = document.getElementById("bg-layer");
+            const imgs = [];
+
+            if (!LOADING_CONFIG.backgroundImages ||
+                LOADING_CONFIG.backgroundImages.length === 0) {
+                return;
+            }
+
+            LOADING_CONFIG.backgroundImages.forEach((src, idx) => {
+                const img = document.createElement("img");
+                img.src = src;
+                if (idx === 0) img.classList.add("active");
+                layer.appendChild(img);
+                imgs.push(img);
+            });
+
+            if (imgs.length <= 1) return;
+
+            let current = 0;
+            setInterval(() => {
+                const next = (current + 1) % imgs.length;
+                imgs[current].classList.remove("active");
+                imgs[next].classList.add("active");
+                current = next;
+            }, LOADING_CONFIG.backgroundChangeSeconds * 1000);
+        })();
+
+        // ==========================
+        // DICAS ROTATIVAS
+        // ==========================
+        (function initTips() {
+            const tipEl = document.getElementById("tip-text");
+            const tips = LOADING_CONFIG.tips || [];
+            if (tips.length === 0) return;
+
+            let index = 0;
+            tipEl.textContent = tips[index];
+
+            setInterval(() => {
+                index = (index + 1) % tips.length;
+                tipEl.textContent = tips[index];
+            }, LOADING_CONFIG.tipRotationSeconds * 1000);
+        })();
+
+        // ==========================
+        // MÚSICA
+        // ==========================
+        let musicInitialized = false;
+        function initMusicIfNeeded() {
+            if (musicInitialized || !LOADING_CONFIG.enableMusic) return;
+            const files = LOADING_CONFIG.musicFiles;
+            if (!files || files.length === 0) return;
+
+            const audio = document.getElementById("bg-music");
+            audio.src = files[0];
+            audio.volume = LOADING_CONFIG.musicVolume;
+            audio.play().catch(() => {
+                // alguns navegadores exigem interação, mas no GMod normalmente toca
+            });
+            musicInitialized = true;
+        }
+
+        // ==========================
+        // PROGRESSO / STATUS
+        // ==========================
+        let currentProgress = 0;
+        let mountingAddons = false;
+
+        function setProgress(target) {
+            target = Math.max(0, Math.min(100, target));
+            if (target < currentProgress) target = currentProgress; // não voltar
+
+            currentProgress = target;
+            const bar = document.getElementById("progress-bar");
+            const label = document.getElementById("progress-percent");
+
+            bar.style.width = target + "%";
+            label.textContent = Math.round(target) + "%";
+
+            if (target >= 99) {
+                document.getElementById("progress-label").textContent = "Pronto para entrar!";
+                document.getElementById("footer-left").textContent = "Finalizando carregamento...";
+            }
+        }
+
+        // ==========================
+        // FUNÇÕES CHAMADAS PELO GARRY'S MOD
+        // ==========================
+
+        /**
+         * Chamado pelo GMod assim que o jogador entra na tela de loading.
+         */
+        function GameDetails(servername, serverurl, mapname, maxplayers, steamid, gamemode, volume, language) {
+            initMusicIfNeeded();
+
+            document.getElementById("server-name").textContent =
+                servername || LOADING_CONFIG.fallbackServerName;
+
+            document.getElementById("server-subtitle").textContent =
+                LOADING_CONFIG.subtitleWhenIdle;
+
+            document.getElementById("pill-gamemode").textContent =
+                gamemode ? gamemode.toUpperCase() : "GAMEMODE DESCONHECIDO";
+
+            document.getElementById("pill-map").textContent =
+                mapname || "mapa_desconhecido";
+
+            document.getElementById("pill-players").textContent =
+                "0/" + (maxplayers || "?") + " Jogadores";
+
+            document.getElementById("info-map").textContent = mapname || "–";
+            document.getElementById("info-gamemode").textContent = gamemode || "–";
+            document.getElementById("info-steamid").textContent = steamid || "–";
+            document.getElementById("info-slots").textContent =
+                (maxplayers ? maxplayers + " slots" : "–");
+
+            if (language) {
+                document.getElementById("lang-indicator").textContent =
+                    "Idioma do jogo: " + language;
+            }
+
+            document.getElementById("footer-left").textContent = "Baixando conteúdos do servidor...";
+        }
+
+        /**
+         * Chamado pelo GMod sempre que o status muda.
+         * Exemplos: "Sending client info...", "Workshop Complete", "3/10"
+         */
+        function SetStatusChanged(status) {
+            initMusicIfNeeded();
+
+            const statusText = document.getElementById("status-text");
+            statusText.textContent = status || "";
+
+            // Se for algo tipo "x/y"
+            if (status && status.indexOf("/") !== -1) {
+                const match = status.match(/(\d+)\s*\/\s*(\d+)/);
+                if (match) {
+                    const current = parseInt(match[1], 10) || 0;
+                    const total = parseInt(match[2], 10) || 1;
+                    // usamos até ~80% pro download, o resto para mounting/addons
+                    const base = mountingAddons ? 40 : 10;
+                    const percent = base + (current / total) * 60;
+                    setProgress(percent);
+                    document.getElementById("progress-label").textContent = "Baixando arquivos...";
+                }
+            }
+
+            if (status === "Mounting Addons" || status === "Workshop Complete") {
+                mountingAddons = true;
+                setProgress(80);
+                document.getElementById("progress-label").textContent = "Montando addons...";
+            }
+
+            if (status === "Client info sent!" || status === "Client info sent") {
+                setProgress(92);
+                document.getElementById("progress-label").textContent = "Enviando informações do cliente...";
+            }
+
+            if (status === "Starting Lua...") {
+                setProgress(100);
+                document.getElementById("progress-label").textContent = "Iniciando scripts do servidor...";
+                document.getElementById("footer-left").textContent = "Quase lá...";
+            }
+        }
+
+        /**
+         * Geralmente chamado com o nome do arquivo atual sendo baixado.
+         */
+        function DownloadingFile(fileName) {
+            document.getElementById("file-text").textContent =
+                fileName ? "Baixando: " + fileName : "";
+        }
+
+        // Deixar global (por via das dúvidas)
+        window.GameDetails = GameDetails;
+        window.SetStatusChanged = SetStatusChanged;
+        window.DownloadingFile = DownloadingFile;
+
+        // ==========================
+        // PREVIEW NO NAVEGADOR (FORA DO GMOD)
+        // ==========================
+        (function browserPreview() {
+            const ua = navigator.userAgent || "";
+            if (ua.indexOf("GMod") !== -1) return; // já estamos no jogo
+
+            // Simulação básica pra ver o layout no navegador
+            GameDetails(
+                LOADING_CONFIG.fallbackServerName,
+                "",
+                "ttt_minecraft_b5",
+                24,
+                "STEAM_0:1:13371337",
+                "Trouble in Terrorist Town",
+                1,
+                "pt-BR"
+            );
+
+            let fakeCurrent = 0;
+            const steps = [
+                "Conectando ao servidor...",
+                "Autenticando...",
+                "3/20",
+                "7/20",
+                "14/20",
+                "20/20",
+                "Workshop Complete",
+                "Client info sent!",
+                "Starting Lua..."
+            ];
+
+            let i = 0;
+            function nextStep() {
+                if (i >= steps.length) return;
+                SetStatusChanged(steps[i]);
+                i++;
+                setTimeout(nextStep, 900);
+            }
+
+            setTimeout(nextStep, 700);
+        })();
+    </script>
+</body>
+</html>
